@@ -19,7 +19,7 @@ import {
 } from "../config";
 import { getSSOConfigHelper } from "../ee/helpers/organizations";
 import { InternalServerError, OrganizationNotFoundError } from "./errors";
-import { INVITED, MEMBER } from "../variables";
+import { ACCEPTED, INVITED, MEMBER } from "../variables";
 import { getSiteURL } from "../config";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -135,24 +135,38 @@ const initializePassport = async () => {
     {
       passReqToCallback: true,
       getSamlOptions: async (req: any, done: any) => {
-          const { ssoIdentifier } = req.params;
-          
-          const ssoConfig = await getSSOConfigHelper({
-            ssoConfigId: new Types.ObjectId(ssoIdentifier)
-          });
-          
-          const samlConfig = ({
-            path: "/api/v1/auth/callback/saml",
-            callbackURL: `${await getSiteURL()}/api/v1/auth/callback/saml`,
-            entryPoint: ssoConfig.entryPoint,
-            issuer: ssoConfig.issuer,
-            cert: ssoConfig.cert,
-            audience: ssoConfig.audience
-          });
-          
-          req.ssoConfig = ssoConfig;
-
-          done(null, samlConfig);
+        const { ssoIdentifier } = req.params;
+        
+        const ssoConfig = await getSSOConfigHelper({
+          ssoConfigId: new Types.ObjectId(ssoIdentifier)
+        });
+        
+        interface ISAMLConfig {
+          path: string;
+          callbackURL: string;
+          entryPoint: string;
+          issuer: string;
+          cert: string;
+          audience: string;
+          wantAuthnResponseSigned?: boolean;
+        }
+        
+        const samlConfig: ISAMLConfig = ({
+          path: `${await getSiteURL()}/api/v1/sso/saml2/${ssoIdentifier}`,
+          callbackURL: `${await getSiteURL()}/api/v1/sso/saml2${ssoIdentifier}`,
+          entryPoint: ssoConfig.entryPoint,
+          issuer: ssoConfig.issuer,
+          cert: ssoConfig.cert,
+          audience: await getSiteURL()
+        });
+        
+        if (ssoConfig.authProvider === AuthProvider.JUMPCLOUD_SAML) {
+          samlConfig.wantAuthnResponseSigned = false;
+        }
+        
+        req.ssoConfig = ssoConfig;
+        
+        done(null, samlConfig);
       },
     },
     async (req: any, profile: any, done: any) => {
@@ -161,7 +175,7 @@ const initializePassport = async () => {
       const organization = await Organization.findById(req.ssoConfig.organization);
       
       if (!organization) return done(OrganizationNotFoundError());
-      
+
       const email = profile.email;
       const firstName = profile.firstName;
       const lastName = profile.lastName;
@@ -170,15 +184,44 @@ const initializePassport = async () => {
         email
       }).select("+publicKey");
       
-      if (user && user.authProvider !== AuthProvider.OKTA_SAML) {
-        done(InternalServerError());
-      }
-
-      if (!user) {
+      if (user) {
+        if (!user.authProvider || user.authProvider === AuthProvider.EMAIL || user.authProvider === AuthProvider.GOOGLE) {
+          await User.findByIdAndUpdate(
+            user._id, 
+            {
+              authProvider: req.ssoConfig.authProvider
+            },
+            {
+              new: true
+            }
+          );
+        }
+        
+        let membershipOrg = await MembershipOrg.findOne(
+          {
+            user: user._id,
+            organization: organization._id
+          }
+        );
+        
+        if (!membershipOrg) {
+          membershipOrg = await new MembershipOrg({
+            inviteEmail: email,
+            user: user._id,
+            organization: organization._id,
+            role: MEMBER,
+            status: ACCEPTED
+          }).save();
+        }
+        
+        if (membershipOrg.status === INVITED) {
+          membershipOrg.status = ACCEPTED;
+          await membershipOrg.save();
+        }
+      } else {
         user = await new User({
           email,
-          authProvider: AuthProvider.OKTA_SAML,
-          authId: profile.id,
+          authProvider: req.ssoConfig.authProvider,
           firstName,
           lastName
         }).save();
@@ -186,7 +229,7 @@ const initializePassport = async () => {
         await new MembershipOrg({
           inviteEmail: email,
           user: user._id,
-          organization: organization?._id,
+          organization: organization._id,
           role: MEMBER,
           status: INVITED
         }).save();
