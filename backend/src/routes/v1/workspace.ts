@@ -15,6 +15,16 @@ import {
 import { membershipController, workspaceController } from "../../controllers/v1";
 
 router.get(
+	"/get-all-workspaces-within-org/:orgId",
+	requireAuth({
+		acceptedAuthModes: [AUTH_MODE_JWT],
+	}),
+	param("orgId").exists().trim(),
+	validateRequest,
+	workspaceController.getAllWorkspacesWithinOrg
+);
+
+router.get(
 	"/:workspaceId/keys",
 	requireAuth({
 		acceptedAuthModes: [AUTH_MODE_JWT],

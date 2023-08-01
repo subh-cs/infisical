@@ -8,6 +8,37 @@ import { AUTH_MODE_JWT } from "../../variables";
 
 // note: ALL DEPRECIATED (moved to api/v2/workspace/:workspaceId/memberships/:membershipId)
 
+// get all memberships of every workspace
+router.get("/:userId/get-all-memberships", requireAuth({
+	acceptedAuthModes: [AUTH_MODE_JWT],
+}), param("userId").exists().trim(),
+	validateRequest,
+	membershipController.findAllMembershipsByUserId);
+
+// add multiple memberships at once
+router.post("/:userId/add-memberships-at-once", requireAuth({
+	acceptedAuthModes: [AUTH_MODE_JWT],
+}), param("userId").exists().trim(),
+	body("membershipsToAdd").isArray().exists(),
+	validateRequest,
+	membershipController.addMultipleMembershipsAtOnce);
+
+// update multiple memberships at once
+router.put("/:userId/update-memberships-at-once", requireAuth({
+	acceptedAuthModes: [AUTH_MODE_JWT],
+}), param("userId").exists().trim(),
+	body("membershipsToUpdate").isArray().exists(),
+	validateRequest,
+	membershipController.updateMultipleMembershipsAtOnce);
+
+// delete multiple memberships at once
+router.delete("/:userId/delete-memberships-at-once", requireAuth({
+	acceptedAuthModes: [AUTH_MODE_JWT],
+}), param("userId").exists().trim(),
+	body("membershipsToDelete").isArray().exists(),
+	validateRequest,
+	membershipController.deleteMultipleMembershipsAtOnce);
+
 router.get( // used for old CLI (deprecate)
 	"/:workspaceId/connect",
 	requireAuth({
@@ -48,5 +79,7 @@ router.post(
 	validateRequest,
 	EEMembershipControllers.denyMembershipPermissions
 );
+
+
 
 export default router;
