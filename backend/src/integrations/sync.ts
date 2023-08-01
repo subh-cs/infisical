@@ -44,6 +44,7 @@ import {
   INTEGRATION_RENDER_API_URL,
   INTEGRATION_SUPABASE,
   INTEGRATION_SUPABASE_API_URL,
+  INTEGRATION_TEAMCITY,
   INTEGRATION_TERRAFORM_CLOUD,
   INTEGRATION_TERRAFORM_CLOUD_API_URL,
   INTEGRATION_TRAVISCI,
@@ -228,6 +229,14 @@ const syncSecrets = async ({
       break;
     case INTEGRATION_CODEFRESH:
       await syncSecretsCodefresh({
+        integration,
+        secrets,
+        accessToken,
+      });
+      break;
+    case INTEGRATION_TEAMCITY:
+      await syncSecretsTeamCity({
+        integrationAuth,
         integration,
         secrets,
         accessToken,
@@ -1972,6 +1981,89 @@ const syncSecretsTerraformCloud = async ({
 };
 
 /**
+ * Sync/push [secrets] to TeamCity project
+ * @param {Object} obj
+ * @param {IIntegration} obj.integration - integration details
+ * @param {Object} obj.secrets - secrets to push to integration
+ * @param {String} obj.accessToken - access token for TeamCity integration
+ */
+const syncSecretsTeamCity = async ({
+  integrationAuth,
+  integration,
+  secrets,
+  accessToken,
+}: {
+  integrationAuth: IIntegrationAuth;
+  integration: IIntegration;
+  secrets: any;
+  accessToken: string;
+}) => {
+  interface TeamCitySecret {
+    name: string;
+    value: string;
+  }
+
+  // get secrets from Teamcity
+  const res = (
+    await standardRequest.get(
+      `${integrationAuth.url}/app/rest/projects/id:${integration.appId}/parameters`, 
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: "application/json",
+        },
+    })
+  )
+  .data
+  .property
+  .reduce(
+    (obj: any, secret: TeamCitySecret) => {
+      const secretName = secret.name.replace(/^env\./, "");  
+      return ({
+        ...obj,
+        [secretName]: secret.value
+      })
+    },
+    {}
+  );
+
+  for await (const key of Object.keys(secrets)) {
+    if (!(key in res) || (key in res && secrets[key] !== res[key])) {
+      // case: secret does not exist in TeamCity or secret value has changed
+      // -> create/update secret
+      await standardRequest.post(
+        `${integrationAuth.url}/app/rest/projects/id:${integration.appId}/parameters`,
+        {
+          name: `env.${key}`,
+          value: secrets[key]
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            Accept: "application/json"
+          }
+        }
+      );
+    }
+  }
+
+  for await (const key of Object.keys(res)) {
+    if (!(key in secrets)) {
+      // delete secret
+      await standardRequest.delete(
+        `${integrationAuth.url}/app/rest/projects/id:${integration.appId}/parameters/env.${key}`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            Accept: "application/json"
+          }
+        }
+      );
+    }
+  }
+};
+
+/**
  * Sync/push [secrets] to HashiCorp Vault path
  * @param {Object} obj
  * @param {IIntegration} obj.integration - integration details
@@ -2268,11 +2360,21 @@ const syncSecretsDigitalOceanAppPlatform = async ({
   secrets: any;
   accessToken: string;
 }) => {
+  // get current app settings
+  const appSettings = (
+    await standardRequest.get(`${INTEGRATION_DIGITAL_OCEAN_API_URL}/v2/apps/${integration.appId}`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json"
+      }
+    })
+  ).data.app.spec;
+
   await standardRequest.put(
     `${INTEGRATION_DIGITAL_OCEAN_API_URL}/v2/apps/${integration.appId}`,
     {
       spec: {
-        name: integration.app,
+        ...appSettings,
         envs: Object.entries(secrets).map(([key, value]) => ({ key, value }))
       }
     },
@@ -2283,7 +2385,7 @@ const syncSecretsDigitalOceanAppPlatform = async ({
       }
     }
   );
-}
+};
 
 /**
  * Sync/push [secrets] to Windmill with name [integration.app]
