@@ -16,26 +16,23 @@ type Props = {
     onOpenChange?: (isOpen: boolean) => void;
     selectedUser?: string;
     memberships?: any;
+    currentUserOrgRole?: string;
+    allWorkspacesWithinOrg?:[]
 };
 
 export const AddtoProjectModal = ({
     isOpen,
     onOpenChange,
     selectedUser,
-    memberships
+    memberships,
+    currentUserOrgRole,
+    allWorkspacesWithinOrg
 }: Props): JSX.Element => {
 
     const [isLoading, setIsLoading] = useState(false);
     const [searchWorkspaceFilter, setSearchWorkspaceFilter] = useState("");
 
     const [tempMemberships, setTempMemberships] = useState([]);
-
-    const { workspaces} = useWorkspace();
-
-    const orgWorkspaces =
-        workspaces?.filter(
-            (workspace) => workspace.organization === localStorage.getItem("orgData.id")
-        ) || [];
 
     // a function which will add or remove a workspace from tempMemberships array based on whether it is already present or not
     const onWorkspaceSelect = (workspaceId: string) => {
@@ -50,7 +47,7 @@ export const AddtoProjectModal = ({
         }
     }
 
-    // a function which will change the role based on the workspaceId
+    // a function which will change the role based on the workspaceId within tempMemberships array
     const onRoleChange = (workspaceId: string, role: string) => {
         const workspaceIndex = tempMemberships.findIndex((membership: any) => membership.workspace === workspaceId);
         if (workspaceIndex !== -1) {
@@ -63,24 +60,28 @@ export const AddtoProjectModal = ({
         }
     }
 
+    // a function which will toggle the select all checkbox
     const selectAllToggle = () => {
-        if (tempMemberships.length === orgWorkspaces.length) {
+        if (tempMemberships.length === allWorkspacesWithinOrg?.length) {
             setTempMemberships([]);
         }
         else {
-            setTempMemberships(orgWorkspaces.map((workspace: any) => ({ workspace: workspace._id, role: "member", user: selectedUser, _id: memberships.find((membership: any) => membership.workspace === workspace._id)?._id || "" })));
+            setTempMemberships(allWorkspacesWithinOrg?.map((workspace: any) => ({ workspace: workspace._id, role: "member", user: selectedUser, _id: memberships.find((membership: any) => membership.workspace === workspace._id)?._id || "" })));
         }
     }
 
+    // a function which will give access to all the workspaces to the user
     const onAddToProjects = async () => {
         setIsLoading(true);
 
+        // comparing with the membership (prop) array with latest state, extracting the memberships which were not present before and now have to add
         const membershipsToAdd = tempMemberships.filter((membership: any) => !memberships.some((m: any) => m.workspace === membership.workspace)).map((membership: any) => ({
             workspace: membership.workspace,
             role: membership.role,
             user: membership.user
         }));
 
+        // comparing with the membership (prop) array with latest state, extracting the memberships which were present before and now have to delete
         const membershipsToDelete = memberships.filter((membership: any) => !tempMemberships.some((m: any) => m.workspace === membership.workspace)).map((membership: any) => ({
             workspace: membership.workspace,
             role: membership.role,
@@ -88,17 +89,13 @@ export const AddtoProjectModal = ({
             _id: membership._id
         }));
 
-
+        // comparing with the membership (prop) array with latest state, extracting the memberships which were present before and now have to update the role
         const membershipsToUpdate = tempMemberships.filter((membership: any) => memberships.some((m: any) => m.workspace === membership.workspace && m.role !== membership.role)).map((membership: any) => ({
             workspace: membership.workspace,
             role: membership.role,
             user: membership.user,
             _id: membership._id
         }));
-
-        console.log("membershipsToAdd", membershipsToAdd);
-        console.log("membershipsToDelete", membershipsToDelete);
-        console.log("membershipsToUpdate", membershipsToUpdate);
 
 
         const addedData = await addMultipleMembershipsAtOnce(membershipsToAdd, selectedUser as string);
@@ -109,7 +106,6 @@ export const AddtoProjectModal = ({
 
         if (addedData?.success && updatedData?.success && deletedData?.success) {
             Router.reload();
-            // console.log("success");
         }
         else {
             alert("Something went wrong");
@@ -121,23 +117,24 @@ export const AddtoProjectModal = ({
 
     const filteredWorkspace = useMemo(
         () =>
-          orgWorkspaces.filter(
-            ({ name }) =>
-              name?.toLowerCase().includes(searchWorkspaceFilter.toLowerCase())
-          ),
-        [orgWorkspaces, searchWorkspaceFilter]
-      );
+        allWorkspacesWithinOrg?.filter(
+                ({ name }) =>
+                    name?.toLowerCase().includes(searchWorkspaceFilter.toLowerCase())
+            ),
+        [allWorkspacesWithinOrg, searchWorkspaceFilter]
+    );
 
 
     useEffect(() => {
         if (isOpen) {
-            // create a object only containing workspaceId and role from memberships if workspace is also present in orgWorkspaces
-            const tempMembershipsObj = memberships?.filter((membership: any) => orgWorkspaces.some((workspace: any) => workspace._id === membership.workspace))?.map((membership: any) => ({
+            // as membership array contains all the memberships including the ones which are not of the current organization, we need to filter them out
+            const tempMembershipsObj = memberships?.filter((membership: any) => allWorkspacesWithinOrg?.some((workspace: any) => workspace._id === membership.workspace))?.map((membership: any) => ({
                 workspace: membership.workspace,
                 role: membership.role,
                 user: membership.user,
                 _id: membership._id
             }));
+            // we will be using tempMemberships to play around with the data and manage the state within the modal
             setTempMemberships(tempMembershipsObj);
         }
         else if (!isOpen) {
@@ -165,25 +162,26 @@ export const AddtoProjectModal = ({
                     <div className="flex justify-start items-center py-2 border-b border-mineshaft-600">
                         <Checkbox
                             onClick={selectAllToggle}
-                            isChecked={tempMemberships.length === orgWorkspaces.length && searchWorkspaceFilter.length === 0 ? true : false}
-                            isDisabled={searchWorkspaceFilter.length > 0 ? true : false}
+                            isChecked={tempMemberships.length === allWorkspacesWithinOrg?.length}
+                            isDisabled={(searchWorkspaceFilter.length > 0) ? true : false || currentUserOrgRole === "member" ? true : false}
                         />
                         Select all
                     </div>
                     {filteredWorkspace
-                        .map((workspace) => (
+                        ?.map((workspace) => (
                             <div key={workspace._id} className="flex justify-between items-center pt-4 px-4">
                                 <div className="flex justify-start items-center">
                                     <Checkbox
                                         id={workspace._id}
                                         isChecked={tempMemberships?.some((membership) => membership.workspace === workspace._id)}
                                         onClick={() => onWorkspaceSelect(workspace._id)}
+                                        isDisabled={currentUserOrgRole === "member" ? true : false}
                                     />
                                     {workspace.name}
                                 </div>
                                 <Select
                                     defaultValue={tempMemberships?.find((membership) => membership.workspace === workspace._id)?.role == "admin" ? "admin" : "member"}
-                                    isDisabled={!tempMemberships?.some((membership) => membership.workspace === workspace._id)}
+                                    isDisabled={!tempMemberships?.some((membership) => membership.workspace === workspace._id)|| currentUserOrgRole === "member"}
                                     className="w-40 bg-mineshaft-600"
                                     dropdownContainerClassName="border border-mineshaft-600 bg-mineshaft-800"
                                     onValueChange={(selectedRole: string) =>
@@ -202,9 +200,9 @@ export const AddtoProjectModal = ({
                 <Button
                     className="w-full mt-8"
                     isLoading={isLoading}
-                    onClick={onAddToProjects}
+                    onClick={currentUserOrgRole === "member" ? () => onOpenChange() : onAddToProjects}
                 >
-                    Give Access 🚀
+                    {currentUserOrgRole === "member" ? "Close" : "Add to projects"}
                 </Button>
 
 

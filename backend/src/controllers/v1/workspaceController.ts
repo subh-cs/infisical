@@ -255,3 +255,16 @@ export const getWorkspaceServiceTokens = async (
     serviceTokens,
   });
 };
+
+// a function which returns the workspaces based on org id
+export const getAllWorkspacesWithinOrg = async (req: Request, res: Response) => {
+  const { orgId } = req.params;
+
+  const workspaces = await Workspace.find({
+    organization: orgId,
+  });
+
+  return res.status(200).send({
+    workspaces,
+  });
+};

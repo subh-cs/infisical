@@ -7,7 +7,9 @@ import {
   faMagnifyingGlass,
   faPlus,
   faTrash,
-  faUsers
+  faUsers,
+  faEdit,
+  faEye
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -44,6 +46,7 @@ import { useFetchServerStatus } from "@app/hooks/api/serverDetails";
 import { OrgUser, Workspace } from "@app/hooks/api/types";
 import { AddtoProjectModal } from "~/components/v2/AddtoMultipleProjectFromOrgModal";
 import getAllMembershipsByUserId from "~/pages/api/memberships/getAllMemberships";
+import getAllWorkspacesByOrgId from "~/pages/api/workspace/getAllWorkSpacesByOrgId";
 
 
 type Props = {
@@ -92,6 +95,8 @@ export const OrgMembersTable = ({
   const [isInviteLinkCopied, setInviteLinkCopied] = useToggle(false);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [memberships, setMemberships] = useState([]);
+  const [currentUserOrgRole, setCurrentUserOrgRole] = useState<string>("");
+  const [allWorkspacesWithinOrg, setAllWorkspacesWithinOrg] = useState([]);
   const { handlePopUpToggle, popUp, handlePopUpOpen, handlePopUpClose } = usePopUp([
     "addMember",
     "removeMember",
@@ -102,6 +107,8 @@ export const OrgMembersTable = ({
 
   const openUserModal = async (userId: string) => {
     setSelectedUser(userId);
+    const allWorkSpacesWithinOrg = await getAllWorkspacesByOrgId(currentOrg?._id);
+    setAllWorkspacesWithinOrg(allWorkSpacesWithinOrg?.workspaces);
     const membershipData = await getAllMembershipsByUserId(userId);
     setMemberships(membershipData.memberships);
     handlePopUpOpen("addToProjectModal");
@@ -135,10 +142,11 @@ export const OrgMembersTable = ({
     handlePopUpClose("removeMember");
   };
 
-  const isIamOwner = useMemo(
-    () => members.find(({ user }) => userId === user?._id)?.role === "owner",
-    [userId, members]
-  );
+  // role of the current loggedin user in the org and set the state to it
+  useEffect(() => {
+    const role = members.find(({ user }) => userId === user?._id)?.role;
+    setCurrentUserOrgRole(role);
+  }, [members]);
 
   const filterdUser = useMemo(
     () =>
@@ -217,7 +225,6 @@ export const OrgMembersTable = ({
                   const name = user ? `${user.firstName} ${user.lastName}` : "-";
                   const email = user?.email || inviteEmail;
                   const userWs = workspaceMemberships?.[user?._id];
-
                   return (
                     <Tr key={`org-membership-${orgMembershipId}`} className="w-full">
                       <Td>{name}</Td>
@@ -226,14 +233,14 @@ export const OrgMembersTable = ({
                         {status === "accepted" && (
                           <Select
                             defaultValue={role}
-                            isDisabled={userId === user?._id}
+                            isDisabled={(userId === user?._id || role === "owner") || (currentUserOrgRole === "member")}
                             className="w-40 bg-mineshaft-600"
                             dropdownContainerClassName="border border-mineshaft-600 bg-mineshaft-800"
                             onValueChange={(selectedRole) =>
                               onRoleChange(orgMembershipId, selectedRole)
                             }
                           >
-                            {(isIamOwner || role === "owner") && (
+                            {(role === "owner") && (
                               <SelectItem value="owner">owner</SelectItem>
                             )}
                             <SelectItem value="admin">admin</SelectItem>
@@ -284,29 +291,42 @@ export const OrgMembersTable = ({
                                 (status === "invited" || status === "verified") &&
                                 serverDetails?.emailConfigured
                               ) && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    openUserModal(user?._id);
-                                  }}
-                                  className="w-max cursor-pointer rounded-sm bg-mineshaft px-1.5 py-0.5 text-sm duration-200 hover:bg-primary hover:text-black"
-                                >
-                                  <FontAwesomeIcon icon={faPlus} className="mr-1" />
-                                  Add to projects
-                                </button>
+                                <>
+                                  {currentUserOrgRole !== "member" && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        openUserModal(user?._id);
+                                      }}
+                                      className="w-max cursor-pointer rounded-sm bg-mineshaft px-1.5 py-0.5 text-sm duration-200 hover:bg-primary hover:text-black"
+                                    >
+                                      <FontAwesomeIcon icon={faPlus} className="mr-1" />
+                                      Add to projects
+                                    </button>
+                                  )}
+                                </>
                               )}
                           </div>
                         )}
                         <button type="button" onClick={() => {
                           openUserModal(user?._id);
-                        }}>more</button>
+                        }} className="w-max cursor-pointer rounded-sm bg-mineshaft px-1.5 py-0.5 text-sm duration-200 hover:bg-primary hover:text-black"
+                        >
+                          {currentUserOrgRole !== "member" ? (
+                            <><FontAwesomeIcon icon={faEdit} className="mr-1" />
+                              Edit</>) : (<><FontAwesomeIcon icon={faEye} className="mr-1" />
+                                View</>)
+
+                          }
+
+                        </button>
                       </Td>
                       <Td>
                         {userId !== user?._id && (
                           <IconButton
                             ariaLabel="delete"
                             colorSchema="danger"
-                            isDisabled={userId === user?._id}
+                            isDisabled={role === "owner" || currentUserOrgRole === "member"}
                             onClick={() => handlePopUpOpen("removeMember", { id: orgMembershipId })}
                           >
                             <FontAwesomeIcon icon={faTrash} />
@@ -417,6 +437,8 @@ export const OrgMembersTable = ({
         onOpenChange={(isOpen) => handlePopUpToggle("addToProjectModal", isOpen)}
         memberships={memberships}
         selectedUser={selectedUser}
+        currentUserOrgRole={currentUserOrgRole}
+        allWorkspacesWithinOrg={allWorkspacesWithinOrg}
       />
     </div >
   );
