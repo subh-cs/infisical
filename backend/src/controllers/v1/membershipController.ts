@@ -186,3 +186,98 @@ export const inviteUserToWorkspace = async (req: Request, res: Response) => {
     latestKey
   });
 };
+
+/**
+  * Find all memberships
+  * @param req
+  * @param res
+  * @returns
+  */
+
+export const findAllMembershipsByUserId = async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  const memberships = await Membership.find({ user: userId });
+  return res.status(200).send({
+    memberships
+  });
+};
+
+/**
+ * add multiple memberships at once
+ * @param req
+ * @param res
+ * @returns
+ */
+
+export const addMultipleMembershipsAtOnce = async (req: Request, res: Response) => {
+  const { membershipsToAdd } = req.body;
+
+  try {
+    // add new memberships at once
+    if (membershipsToAdd.length > 0) {
+      await Membership.insertMany(membershipsToAdd);
+    }
+
+    return res.status(200).send({
+      success: true,
+      message: "All memberships added successfully"
+    });
+
+  } catch (error: any) {
+    throw new Error(error.message);
+  }
+
+}
+
+/**
+ * update multiple memberships at once
+ * @param req
+ * @param res
+ * @returns
+ */
+
+export const updateMultipleMembershipsAtOnce = async (req: Request, res: Response) => {
+  const { membershipsToUpdate } = req.body;
+  try {
+    // update all memberships at once
+    if (membershipsToUpdate.length > 0) {
+      for (let i = 0; i < membershipsToUpdate.length; i++) {
+        await Membership.findByIdAndUpdate(membershipsToUpdate[i]._id, { role: membershipsToUpdate[i].role });
+      }
+    }
+
+    return res.status(200).send({
+      success: true,
+      message: "All memberships updated successfully"
+    });
+  } catch (error: any) {
+    throw new Error(error.message);
+  }
+}
+
+/**
+ * delete multiple memberships at once
+ * @param req
+ * @param res
+ * @returns
+ */
+
+export const deleteMultipleMembershipsAtOnce = async (req: Request, res: Response) => {
+  const { membershipsToDelete } = req.body;
+
+  try {
+    // delete memberships at once by membership id
+    if (membershipsToDelete.length > 0) {
+      await Membership.deleteMany({ _id: { $in: membershipsToDelete } });
+    }
+
+    return res.status(200).send({
+      success: true,
+      message: "All memberships deleted successfully"
+    });
+
+  } catch (error: any) {
+    throw new Error(error.message);
+  }
+
+}

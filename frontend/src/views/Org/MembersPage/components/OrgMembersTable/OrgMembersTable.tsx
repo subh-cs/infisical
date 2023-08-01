@@ -42,6 +42,9 @@ import { usePopUp, useToggle } from "@app/hooks";
 import { useGetSSOConfig } from "@app/hooks/api";
 import { useFetchServerStatus } from "@app/hooks/api/serverDetails";
 import { OrgUser, Workspace } from "@app/hooks/api/types";
+import { AddtoProjectModal } from "~/components/v2/AddtoMultipleProjectFromOrgModal";
+import getAllMembershipsByUserId from "~/pages/api/memberships/getAllMemberships";
+
 
 type Props = {
   members?: OrgUser[];
@@ -87,12 +90,22 @@ export const OrgMembersTable = ({
   const { data: serverDetails } = useFetchServerStatus();
   const { workspaces } = useWorkspace();
   const [isInviteLinkCopied, setInviteLinkCopied] = useToggle(false);
+  const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [memberships, setMemberships] = useState([]);
   const { handlePopUpToggle, popUp, handlePopUpOpen, handlePopUpClose } = usePopUp([
     "addMember",
     "removeMember",
     "upgradePlan",
-    "setUpEmail"
+    "setUpEmail",
+    "addToProjectModal"
   ] as const);
+
+  const openUserModal = async (userId: string) => {
+    setSelectedUser(userId);
+    const membershipData = await getAllMembershipsByUserId(userId);
+    setMemberships(membershipData.memberships);
+    handlePopUpOpen("addToProjectModal");
+  }
 
   useEffect(() => {
     if (router.query.action === "invite") {
@@ -257,7 +270,7 @@ export const OrgMembersTable = ({
                         ) : (
                           <div className="flex flex-row">
                             {(status === "invited" || status === "verified") &&
-                            serverDetails?.emailConfigured ? (
+                              serverDetails?.emailConfigured ? (
                               <Tag colorSchema="red">
                                 This user hasn&apos;t accepted the invite yet
                               </Tag>
@@ -273,9 +286,9 @@ export const OrgMembersTable = ({
                               ) && (
                                 <button
                                   type="button"
-                                  onClick={() =>
-                                    router.push(`/project/${workspaces[0]?._id}/members`)
-                                  }
+                                  onClick={() => {
+                                    openUserModal(user?._id);
+                                  }}
                                   className="w-max cursor-pointer rounded-sm bg-mineshaft px-1.5 py-0.5 text-sm duration-200 hover:bg-primary hover:text-black"
                                 >
                                   <FontAwesomeIcon icon={faPlus} className="mr-1" />
@@ -284,6 +297,9 @@ export const OrgMembersTable = ({
                               )}
                           </div>
                         )}
+                        <button type="button" onClick={() => {
+                          openUserModal(user?._id);
+                        }}>more</button>
                       </Td>
                       <Td>
                         {userId !== user?._id && (
@@ -396,6 +412,12 @@ export const OrgMembersTable = ({
         isOpen={popUp.setUpEmail?.isOpen}
         onOpenChange={(isOpen) => handlePopUpToggle("setUpEmail", isOpen)}
       />
-    </div>
+      <AddtoProjectModal
+        isOpen={popUp.addToProjectModal?.isOpen}
+        onOpenChange={(isOpen) => handlePopUpToggle("addToProjectModal", isOpen)}
+        memberships={memberships}
+        selectedUser={selectedUser}
+      />
+    </div >
   );
 };
