@@ -308,7 +308,7 @@ export const OrgMembersTable = ({
                               )}
                           </div>
                         )}
-                        <button type="button" onClick={() => {
+                        {userWs ? (<button type="button" onClick={() => {
                           openUserModal(user?._id);
                         }} className="w-max cursor-pointer rounded-sm bg-mineshaft px-1.5 py-0.5 text-sm duration-200 hover:bg-primary hover:text-black"
                         >
@@ -316,10 +316,9 @@ export const OrgMembersTable = ({
                             <><FontAwesomeIcon icon={faEdit} className="mr-1" />
                               Edit</>) : (<><FontAwesomeIcon icon={faEye} className="mr-1" />
                                 View</>)
-
                           }
+                        </button>) : (<></>)}
 
-                        </button>
                       </Td>
                       <Td>
                         {userId !== user?._id && (
