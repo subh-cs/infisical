@@ -15,6 +15,7 @@ import { authLimiter } from "../../../helpers/rateLimiter";
 import {
     ACCEPTED,
     ADMIN,
+    AuthMode,
     OWNER
 } from "../../../variables";
 
@@ -35,6 +36,29 @@ router.get(
 router.get(
   "/google",
   passport.authenticate("google", { 
+    failureRedirect: "/login/provider/error", 
+    session: false 
+  }),
+  ssoController.redirectSSO
+);
+
+router.get(
+  "/redirect/github",
+  authLimiter,
+  (req, res, next) => {
+    passport.authenticate("github", {
+      session: false,
+      ...(req.query.callback_port ? {
+        state: req.query.callback_port as string
+      } : {})
+    })(req, res, next);
+  }
+);
+
+router.get(
+  "/github",
+  authLimiter,
+  passport.authenticate("github", { 
     failureRedirect: "/login/provider/error", 
     session: false 
   }),
@@ -67,7 +91,7 @@ router.post("/saml2/:ssoIdentifier",
 router.get(
     "/config",
     requireAuth({
-		acceptedAuthModes: ["jwt"],
+		acceptedAuthModes: [AuthMode.JWT],
 	}),
     requireOrganizationAuth({
         acceptedRoles: [OWNER, ADMIN],
@@ -82,7 +106,7 @@ router.get(
 router.post(
     "/config",
     requireAuth({
-		acceptedAuthModes: ["jwt"],
+		acceptedAuthModes: [AuthMode.JWT],
 	}),
     requireOrganizationAuth({
         acceptedRoles: [OWNER, ADMIN],
@@ -102,7 +126,7 @@ router.post(
 router.patch(
     "/config",
     requireAuth({
-		acceptedAuthModes: ["jwt"],
+		acceptedAuthModes: [AuthMode.JWT],
 	}),
     requireOrganizationAuth({
         acceptedRoles: [OWNER, ADMIN],

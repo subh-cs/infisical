@@ -8,9 +8,8 @@ import {
 } from "../../middleware";
 import {
 	ADMIN, 
-	AUTH_MODE_API_KEY,
-	AUTH_MODE_JWT,
-	MEMBER,
+	AuthMode,
+	MEMBER
 } from "../../variables";
 import { membershipController, workspaceController } from "../../controllers/v1";
 
@@ -27,7 +26,7 @@ router.get(
 router.get(
 	"/:workspaceId/keys",
 	requireAuth({
-		acceptedAuthModes: [AUTH_MODE_JWT],
+		acceptedAuthModes: [AuthMode.JWT],
 	}),
 	requireWorkspaceAuth({
 		acceptedRoles: [ADMIN, MEMBER],
@@ -41,7 +40,7 @@ router.get(
 router.get(
 	"/:workspaceId/users",
 	requireAuth({
-		acceptedAuthModes: [AUTH_MODE_JWT],
+		acceptedAuthModes: [AuthMode.JWT],
 	}),
 	requireWorkspaceAuth({
 		acceptedRoles: [ADMIN, MEMBER],
@@ -55,7 +54,7 @@ router.get(
 router.get(
 	"/", 
 	requireAuth({
-		acceptedAuthModes: [AUTH_MODE_JWT, AUTH_MODE_API_KEY],
+		acceptedAuthModes: [AuthMode.JWT, AuthMode.API_KEY],
 	}), 
 	workspaceController.getWorkspaces
 );
@@ -63,7 +62,7 @@ router.get(
 router.get(
 	"/:workspaceId",
 	requireAuth({
-		acceptedAuthModes: [AUTH_MODE_JWT],
+		acceptedAuthModes: [AuthMode.JWT],
 	}),
 	requireWorkspaceAuth({
 		acceptedRoles: [ADMIN, MEMBER],
@@ -77,7 +76,7 @@ router.get(
 router.post(
 	"/",
 	requireAuth({
-		acceptedAuthModes: [AUTH_MODE_JWT],
+		acceptedAuthModes: [AuthMode.JWT],
 	}),
 	body("workspaceName").exists().trim().notEmpty(),
 	body("organizationId").exists().trim().notEmpty(),
@@ -88,7 +87,7 @@ router.post(
 router.delete(
 	"/:workspaceId",
 	requireAuth({
-		acceptedAuthModes: [AUTH_MODE_JWT],
+		acceptedAuthModes: [AuthMode.JWT],
 	}),
 	requireWorkspaceAuth({
 		acceptedRoles: [ADMIN],
@@ -102,7 +101,7 @@ router.delete(
 router.post(
 	"/:workspaceId/name",
 	requireAuth({
-		acceptedAuthModes: [AUTH_MODE_JWT],
+		acceptedAuthModes: [AuthMode.JWT],
 	}),
 	requireWorkspaceAuth({
 		acceptedRoles: [ADMIN, MEMBER],
@@ -117,7 +116,7 @@ router.post(
 router.post(
 	"/:workspaceId/invite-signup",
 	requireAuth({
-		acceptedAuthModes: [AUTH_MODE_JWT],
+		acceptedAuthModes: [AuthMode.JWT],
 	}),
 	requireWorkspaceAuth({
 		acceptedRoles: [ADMIN, MEMBER],
@@ -132,7 +131,7 @@ router.post(
 router.get(
 	"/:workspaceId/integrations",
 	requireAuth({
-		acceptedAuthModes: [AUTH_MODE_JWT],
+		acceptedAuthModes: [AuthMode.JWT],
 	}),
 	requireWorkspaceAuth({
 		acceptedRoles: [ADMIN, MEMBER],
@@ -146,7 +145,7 @@ router.get(
 router.get(
 	"/:workspaceId/authorizations",
 	requireAuth({
-		acceptedAuthModes: [AUTH_MODE_JWT],
+		acceptedAuthModes: [AuthMode.JWT],
 	}),
 	requireWorkspaceAuth({
 		acceptedRoles: [ADMIN, MEMBER],
@@ -158,9 +157,9 @@ router.get(
 );
 
 router.get(
-	"/:workspaceId/service-tokens", // deprecate
+	"/:workspaceId/service-tokens", // TODO endpoint: deprecate
 	requireAuth({
-		acceptedAuthModes: [AUTH_MODE_JWT],
+		acceptedAuthModes: [AuthMode.JWT],
 	}),
 	requireWorkspaceAuth({
 		acceptedRoles: [ADMIN, MEMBER],

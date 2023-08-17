@@ -1,3 +1,5 @@
+// TODO: deprecate in favor of new audit logs
+
 /* eslint-disable jsx-a11y/no-noninteractive-element-interactions */
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -47,9 +49,10 @@ const ActivityLogsRow = ({
   const { t } = useTranslation();
 
   const renderUser = () => {
+    
     if (row?.user) return `${row.user}`;
     if (row?.serviceAccount) return `Service Account: ${row.serviceAccount.name}`;
-    if (row?.serviceTokenData.name) return `Service Token: ${row.serviceTokenData.name}`;
+    if (row?.serviceTokenData?.name) return `Service Token: ${row.serviceTokenData.name}`;
 
     return "";
   };
