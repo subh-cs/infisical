@@ -75,6 +75,13 @@ export type FormData = yup.InferType<typeof schema>;
 export type TSecretDetailsOpen = { index: number; id: string };
 export type TSecOverwriteOpt = { secrets: Record<string, { comments: string[]; value: string }> };
 
+// to convert multi line into single line ones by quoting them and changing to string \n
+const formatMultiValueEnv = (val?: string) => {
+  if (!val) return "";
+  if (!val.match("\n")) return val;
+  return `"${val.replace(/\n/g, "\\n")}"`;
+};
+
 export const downloadSecret = (
   secrets: FormData["secrets"] = [],
   importedSecrets: { key: string; value?: string; comment?: string }[] = [],
@@ -86,9 +93,11 @@ export const downloadSecret = (
   });
   const finalSecret = [...importedSecrets];
   secrets.forEach(({ key, value, valueOverride, overrideAction, comment }) => {
+    const finalVal =
+      overrideAction && overrideAction !== SecretActionType.Deleted ? valueOverride : value;
     const newValue = {
       key,
-      value: overrideAction && overrideAction !== SecretActionType.Deleted ? valueOverride : value,
+      value: formatMultiValueEnv(finalVal),
       comment
     };
     // can also be zero thus failing
@@ -173,15 +182,18 @@ const deepCompareSecrets = (lhs: DecryptedSecret, rhs: any) =>
   JSON.stringify(lhs.tags) === JSON.stringify(rhs.tags);
 
 export const transformSecretsToBatchSecretReq = (
-  deletedSecretIds: string[],
+  deletedSecretIds: { id: string; secretName: string; }[],
   latestFileKey: any,
   secrets: FormData["secrets"],
   intialValues: DecryptedSecret[] = []
 ) => {
   // deleted secrets
-  const secretsToBeDeleted: BatchSecretDTO["requests"] = deletedSecretIds.map((id) => ({
+  const secretsToBeDeleted: BatchSecretDTO["requests"] = deletedSecretIds.map(({ id, secretName }) => ({
     method: "DELETE",
-    secret: { _id: id }
+    secret: { 
+      _id: id,
+      secretName
+    }
   }));
 
   const secretsToBeUpdated: BatchSecretDTO["requests"] = [];
@@ -252,7 +264,7 @@ export const transformSecretsToBatchSecretReq = (
     if (idOverride) {
       // if action is deleted meaning override has been removed but id is kept to collect at this point
       if (overrideAction === SecretActionType.Deleted) {
-        secretsToBeDeleted.push({ method: "DELETE", secret: { _id: idOverride } });
+        secretsToBeDeleted.push({ method: "DELETE", secret: { _id: idOverride, secretName: key } });
       } else {
         // if not deleted action then as id is there its an updated
         const initialSecretValue = intialValues?.find(({ _id: secId }) => secId === _id)!;

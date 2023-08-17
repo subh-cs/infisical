@@ -67,7 +67,7 @@ type Props = {
   isSecretValueHidden: boolean;
   searchTerm: string;
   // to record the ids of deleted ones
-  onSecretDelete: (index: number, id?: string, overrideId?: string) => void;
+  onSecretDelete: (index: number, secretName: string, id?: string, overrideId?: string) => void;
   // sidebar control props
   onRowExpand: (secId: string | undefined, index: number) => void;
   // tag props
@@ -79,6 +79,7 @@ type Props = {
   setValue: UseFormSetValue<FormData>;
   isKeyError?: boolean;
   keyError?: string;
+  autoCapitalization?: boolean;
 };
 
 export const SecretInputRow = memo(
@@ -98,7 +99,8 @@ export const SecretInputRow = memo(
     setValue,
     isKeyError,
     keyError,
-    secUniqId
+    secUniqId,
+    autoCapitalization
   }: Props): JSX.Element => {
     const isKeySubDisabled = useRef<boolean>(false);
     // comment management in a row
@@ -107,6 +109,11 @@ export const SecretInputRow = memo(
       remove,
       append
     } = useFieldArray({ control, name: `secrets.${index}.tags` });
+
+    const tagColorByTagId = new Map((wsTags || []).map((wsTag, i) => [wsTag._id, tagColors[i % tagColors.length]]))
+
+    // display the tags in alphabetical order
+    secretTags.sort((a, b) => a.name.localeCompare(b.name))
 
     // to get details on a secret
     const overrideAction = useWatch({
@@ -217,7 +224,7 @@ export const SecretInputRow = memo(
     }
 
     return (
-      <tr className="group flex flex-row" key={index}>
+      <tr className="group flex flex-row hover:bg-mineshaft-700" key={index}>
         <td className="flex h-10 w-10 items-center justify-center border-none px-4">
           <div className="w-10 text-center text-xs text-bunker-400">{index + 1}</div>
         </td>
@@ -243,6 +250,7 @@ export const SecretInputRow = memo(
                         isKeySubDisabled.current = false;
                         field.onBlur();
                       }}
+                      autoCapitalization={autoCapitalization}
                     />
                   </div>
                 </td>
@@ -278,7 +286,6 @@ export const SecretInputRow = memo(
                     value={editorRef}
                     isVisible={!isSecretValueHidden}
                     onChange={(val, html) => {
-                      console.log(val);
                       onChange(val);
                       setEditorRef(html);
                     }}
@@ -319,19 +326,22 @@ export const SecretInputRow = memo(
         </td>
         <td className="min-w-sm flex">
           <div className="flex h-8 items-center pl-2">
-            {secretTags.map(({ id, slug }, i) => (
-              <Tag
-                className={cx(
-                  tagColors[i % tagColors.length].bg,
-                  tagColors[i % tagColors.length].text
-                )}
-                isDisabled={isReadOnly || isAddOnly || isRollbackMode}
-                onClose={() => remove(i)}
-                key={id}
-              >
-                {slug}
-              </Tag>
-            ))}
+            {secretTags.map(({ id, _id, slug }, i) => {
+              // This map lookup shouldn't ever fail, but if it does we default to the first color
+              const tagColor = tagColorByTagId.get(_id) || tagColors[0]
+              return (
+                <Tag
+                  className={cx(
+                    tagColor.bg,
+                    tagColor.text
+                  )}
+                  isDisabled={isReadOnly || isAddOnly || isRollbackMode}
+                  onClose={() => remove(i)}
+                  key={id}
+                >
+                  {slug}
+                </Tag>)
+            })}
             <div className="w-0 overflow-hidden group-hover:w-6">
               <Tooltip content="Copy value">
                 <IconButton
@@ -493,7 +503,9 @@ export const SecretInputRow = memo(
                     colorSchema="danger"
                     ariaLabel="delete"
                     isDisabled={isReadOnly || isRollbackMode}
-                    onClick={() => onSecretDelete(index, secId, idOverride)}
+                    onClick={() => {
+                      onSecretDelete(index, secKey, secId, idOverride);
+                    }}
                   >
                     <FontAwesomeIcon icon={faXmark} />
                   </IconButton>

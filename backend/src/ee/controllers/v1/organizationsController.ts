@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { Request, Response } from "express";
 import { getLicenseServerUrl } from "../../../config";
 import { licenseServerKeyRequest } from "../../../config/request";
@@ -20,7 +21,7 @@ export const getOrganizationPlan = async (req: Request, res: Response) => {
     const { organizationId } = req.params;
     const workspaceId = req.query.workspaceId as string;
 
-    const plan = await EELicenseService.getPlan(organizationId, workspaceId);
+    const plan = await EELicenseService.getPlan(new Types.ObjectId(organizationId), new Types.ObjectId(workspaceId));
 
     return res.status(200).send({
         plan,
@@ -44,7 +45,7 @@ export const startOrganizationTrial = async (req: Request, res: Response) => {
         }
     ); 
     
-    EELicenseService.delPlan(organizationId);
+    EELicenseService.delPlan(new Types.ObjectId(organizationId));
     
     return res.status(200).send({
         url
@@ -137,6 +138,12 @@ export const addOrganizationPmtMethod = async (req: Request, res: Response) => {
     }); 
 }
 
+/**
+ * Delete payment method with id [pmtMethodId] for organization
+ * @param req 
+ * @param res 
+ * @returns 
+ */
 export const deleteOrganizationPmtMethod = async (req: Request, res: Response) => {
     const { pmtMethodId } = req.params;
 
@@ -206,4 +213,18 @@ export const getOrganizationInvoices = async (req: Request, res: Response) => {
     );
 
     return res.status(200).send(invoices); 
+}
+
+/**
+ * Return organization's licenses on file
+ * @param req 
+ * @param res 
+ * @returns 
+ */
+export const getOrganizationLicenses = async (req: Request, res: Response) => {
+    const { data: { licenses } } = await licenseServerKeyRequest.get(
+        `${await getLicenseServerUrl()}/api/license-server/v1/customers/${req.organization.customerId}/licenses`
+    );
+
+    return res.status(200).send(licenses); 
 }

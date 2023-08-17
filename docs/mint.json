@@ -23,7 +23,8 @@
   },
   "feedback": {
     "suggestEdit": true,
-    "raiseIssue": true
+    "raiseIssue": true,
+    "thumbsRating": true
   },
   "api": {
     "baseUrl": ["https://app.infisical.com", "http://localhost:8080"],
@@ -68,7 +69,7 @@
     {
       "name": "Blog",
       "icon": "newspaper",
-      "url": "https://blog.infisical.com/"
+      "url": "https://infisical.com/blog"
     },
     {
       "name": "Slack",
@@ -232,6 +233,7 @@
         "integrations/cloud/supabase",
         "integrations/cloud/northflank",
         "integrations/cloud/terraform-cloud",
+        "integrations/cloud/teamcity",
         "integrations/cloud/cloudflare-pages",
         "integrations/cloud/checkly",
         "integrations/cloud/hashicorp-vault",

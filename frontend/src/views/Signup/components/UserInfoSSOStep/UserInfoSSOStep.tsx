@@ -3,7 +3,7 @@ import crypto from "crypto";
 
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faInfoCircle, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import jsrp from "jsrp";
 import nacl from "tweetnacl";
@@ -17,8 +17,8 @@ import { saveTokenToLocalStorage } from "@app/components/utilities/saveTokenToLo
 import SecurityClient from "@app/components/utilities/SecurityClient";
 import { Button, Input } from "@app/components/v2";
 import { useGetCommonPasswords } from "@app/hooks/api";
-import completeAccountInformationSignup from "@app/pages/api/auth/CompleteAccountInformationSignup";
-import getOrganizations from "@app/pages/api/organization/getOrgs";
+import { completeAccountSignup } from "@app/hooks/api/auth/queries";
+import { fetchOrganizations } from "@app/hooks/api/organization/queries";
 import ProjectService from "@app/services/ProjectService";
 
 // eslint-disable-next-line new-cap
@@ -157,7 +157,7 @@ export const UserInfoSSOStep = ({
                 secret: Buffer.from(derivedKey.hash)
               });
 
-              const response = await completeAccountInformationSignup({
+              const response = await completeAccountSignup({
                 email,
                 firstName: name.split(" ")[0],
                 lastName: name.split(" ").slice(1).join(" "),
@@ -188,7 +188,7 @@ export const UserInfoSSOStep = ({
                 privateKey
               });
 
-              const userOrgs = await getOrganizations();
+              const userOrgs = await fetchOrganizations();
               const orgId = userOrgs[0]?._id;
               const project = await ProjectService.initProject({
                 organizationId: orgId,
@@ -198,7 +198,7 @@ export const UserInfoSSOStep = ({
               localStorage.setItem("orgData.id", orgId);
               localStorage.setItem("projectData.id", project._id);
 
-                setStep(1);
+              setStep(1);
             } catch (error) {
               setIsLoading(false);
               console.error(error);
@@ -256,7 +256,7 @@ export const UserInfoSSOStep = ({
         )}
         <div className="mt-2 flex lg:w-1/6 w-1/4 min-w-[20rem] max-h-60 w-full flex-col items-center justify-center rounded-lg py-2">
           <InputField
-            label={t("section.password.password")}
+            label="Infisical Password"
             onChangeHandler={(pass: string) => {
               setPassword(pass);
               checkPassword({
@@ -272,6 +272,7 @@ export const UserInfoSSOStep = ({
             autoComplete="new-password"
             id="new-password"
           />
+          <div className="mt-2 w-min min-w-[20rem] max-h-60 flex-col items-center justify-center rounded-md px-1.5 bg-mineshaft-500 text-mineshaft-300 text-xs p-1.5"><FontAwesomeIcon icon={faInfoCircle} className="mr-1.5" />Infisical Password is used as part of the encryption mechanism so that even the authentication provider is not able to access your secrets.</div>
           {Object.keys(errors).length > 0 && (
             <div className="mt-4 flex w-full flex-col items-start rounded-md bg-white/5 px-2 py-2">
               <div className="mb-2 text-sm text-gray-400">{t("section.password.validate-base")}</div> 
@@ -307,7 +308,7 @@ export const UserInfoSSOStep = ({
               onClick={signupErrorCheck}
               size="sm"
               isFullWidth
-              className='h-14'
+              className='h-12'
               colorSchema="primary"
               variant="outline_bg"
               isLoading={isLoading}

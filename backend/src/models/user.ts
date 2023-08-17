@@ -1,8 +1,9 @@
 import { Document, Schema, Types, model } from "mongoose";
 
-export enum AuthProvider {
+export enum AuthMethod {
 	EMAIL = "email",
 	GOOGLE = "google",
+	GITHUB = "github",
 	OKTA_SAML = "okta-saml",
 	AZURE_SAML = "azure-saml",
 	JUMPCLOUD_SAML = "jumpcloud-saml",
@@ -10,8 +11,8 @@ export enum AuthProvider {
 
 export interface IUser extends Document {
 	_id: Types.ObjectId;
-	authId?: string;
-	authProvider?: AuthProvider;
+	authProvider?: AuthMethod;
+	authMethods: AuthMethod[];
 	email: string;
 	firstName?: string;
 	lastName?: string;
@@ -35,12 +36,17 @@ export interface IUser extends Document {
 
 const userSchema = new Schema<IUser>(
 	{
-		authId: {
+		authProvider: { // TODO field: deprecate
 			type: String,
+			enum: AuthMethod,
 		},
-		authProvider: {
-			type: String,
-			enum: AuthProvider,
+		authMethods: {
+			type: [{
+				type: String,
+				enum: AuthMethod,
+			}],
+			default: [AuthMethod.EMAIL],
+			required: true
 		},
 		email: {
 			type: String,

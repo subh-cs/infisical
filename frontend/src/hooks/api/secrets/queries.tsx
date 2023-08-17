@@ -11,13 +11,13 @@ import { apiRequest } from "@app/config/request";
 import { secretSnapshotKeys } from "../secretSnapshots/queries";
 import {
   BatchSecretDTO,
+  CreateSecretDTO,
   DecryptedSecret,
   EncryptedSecret,
   EncryptedSecretVersion,
   GetProjectSecretsDTO,
   GetSecretVersionsDTO,
-  TGetProjectSecretsAllEnvDTO
-} from "./types";
+  TGetProjectSecretsAllEnvDTO} from "./types";
 
 export const secretKeys = {
   // this is also used in secretSnapshot part
@@ -54,13 +54,14 @@ export const useGetProjectSecrets = ({
   env,
   decryptFileKey,
   isPaused,
-  folderId
+  folderId,
+  secretPath
 }: GetProjectSecretsDTO) =>
   useQuery({
     // wait for all values to be available
     enabled: Boolean(decryptFileKey && workspaceId && env) && !isPaused,
-    queryKey: secretKeys.getProjectSecret(workspaceId, env, folderId),
-    queryFn: () => fetchProjectEncryptedSecrets(workspaceId, env, folderId),
+    queryKey: secretKeys.getProjectSecret(workspaceId, env, folderId || secretPath),
+    queryFn: () => fetchProjectEncryptedSecrets(workspaceId, env, folderId, secretPath),
     select: useCallback(
       (data: EncryptedSecret[]) => {
         const PRIVATE_KEY = localStorage.getItem("PRIVATE_KEY") as string;
@@ -319,6 +320,27 @@ export const useBatchSecretsOp = () => {
       );
       queryClient.invalidateQueries(
         secretSnapshotKeys.count(dto.workspaceId, dto.environment, dto?.folderId)
+      );
+    }
+  });
+};
+
+export const createSecret = async (dto: CreateSecretDTO) => {
+  const { data } = await apiRequest.post(`/api/v3/secrets/${dto.secretKey}`, dto);
+  return data;
+}
+
+export const useCreateSecret = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<{}, {}, CreateSecretDTO>({
+    mutationFn: async (dto) => {
+      const data = createSecret(dto);
+      return data;
+    },
+    onSuccess: (_, dto) => {
+      queryClient.invalidateQueries(
+        secretKeys.getProjectSecret(dto.workspaceId, dto.environment)
       );
     }
   });
