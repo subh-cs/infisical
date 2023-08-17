@@ -16,7 +16,7 @@ import { membershipController, workspaceController } from "../../controllers/v1"
 router.get(
 	"/get-all-workspaces-within-org/:orgId",
 	requireAuth({
-		acceptedAuthModes: [AUTH_MODE_JWT],
+		acceptedAuthModes: [AuthMode.JWT],
 	}),
 	param("orgId").exists().trim(),
 	validateRequest,

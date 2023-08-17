@@ -6,10 +6,9 @@ import {
   faCopy,
   faMagnifyingGlass,
   faPlus,
-  faTrash,
   faUsers,
-  faEdit,
-  faEye
+  faXmark,
+  faPencil
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -308,30 +307,39 @@ export const OrgMembersTable = ({
                               )}
                           </div>
                         )}
-                        {userWs ? (<button type="button" onClick={() => {
-                          openUserModal(user?._id);
-                        }} className="w-max cursor-pointer rounded-sm bg-mineshaft px-1.5 py-0.5 text-sm duration-200 hover:bg-primary hover:text-black"
-                        >
-                          {currentUserOrgRole !== "member" ? (
-                            <><FontAwesomeIcon icon={faEdit} className="mr-1" />
-                              Edit</>) : (<><FontAwesomeIcon icon={faEye} className="mr-1" />
-                                View</>)
-                          }
-                        </button>) : (<></>)}
 
                       </Td>
+
                       <Td>
-                        {userId !== user?._id && (
+                        {currentUserOrgRole !== "member" && (<IconButton
+                          ariaLabel="update"
+                          colorSchema="primary"
+                          variant="plain"
+                          onClick={() => {
+                            openUserModal(user?._id);
+                          }}
+                        >
+                          <FontAwesomeIcon icon={faPencil} />
+                        </IconButton>)}
+
+                      </Td>
+
+                      <Td>
+                        {(currentUserOrgRole !== "member") && (
                           <IconButton
-                            ariaLabel="delete"
-                            colorSchema="danger"
-                            isDisabled={role === "owner" || currentUserOrgRole === "member"}
                             onClick={() => handlePopUpOpen("removeMember", { id: orgMembershipId })}
+                            colorSchema="danger"
+                            variant="plain"
+                            ariaLabel="delete"
+                            isDisabled={role === "owner"}
                           >
-                            <FontAwesomeIcon icon={faTrash} />
+                            <FontAwesomeIcon icon={faXmark} />
                           </IconButton>
                         )}
+
                       </Td>
+
+
                     </Tr>
                   );
                 })}
